@@ -5,7 +5,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
 $baseNames = [
     "Party_Invite", "Letter_from_Friend", "Important_Mail", "Formal_Invitation",
-    , "Invitation_Final", "Special_Invitation_VIP", "Special_letter_VIP",
+    "Invitation_Final", "Special_Invitation_VIP", "Special_letter_VIP",
     "Ceremony_Invite", "RSVP_Invitation_Draft", "Personal_Invite", "Elegant_Invitation_Card",
     "Invitation_Exclusive", "Save_The_Date_Invitation", "Save_The_Date"
 ];
